@@ -21,7 +21,7 @@ use uuid::Uuid;
 use chrono::Local;
 use axum::middleware::Next;
 use axum::body::Body;
-use axum::http::Request;
+use axum::http::{header::{ACCESS_CONTROL_ALLOW_HEADERS, ACCESS_CONTROL_ALLOW_METHODS, ACCESS_CONTROL_ALLOW_ORIGIN}, HeaderValue, Method, Request};
 
 #[derive(Clone)]
 struct AppState {
@@ -145,6 +145,27 @@ async fn logging_middleware(
     next.run(req).await
 }
 
+async fn cors_middleware(
+    req: Request<Body>,
+    next: Next,
+) -> Response {
+    if req.method() == Method::OPTIONS {
+        let mut response = Response::new(Body::empty());
+        let headers = response.headers_mut();
+        headers.insert(ACCESS_CONTROL_ALLOW_ORIGIN, HeaderValue::from_static("*"));
+        headers.insert(ACCESS_CONTROL_ALLOW_METHODS, HeaderValue::from_static("GET, POST, PUT, DELETE, OPTIONS"));
+        headers.insert(ACCESS_CONTROL_ALLOW_HEADERS, HeaderValue::from_static("*"));
+        return response;
+    }
+
+    let mut response = next.run(req).await;
+    let headers = response.headers_mut();
+    headers.insert(ACCESS_CONTROL_ALLOW_ORIGIN, HeaderValue::from_static("*"));
+    headers.insert(ACCESS_CONTROL_ALLOW_METHODS, HeaderValue::from_static("GET, POST, PUT, DELETE, OPTIONS"));
+    headers.insert(ACCESS_CONTROL_ALLOW_HEADERS, HeaderValue::from_static("*"));
+    response
+}
+
 async fn index() -> Html<&'static str> {
     Html(include_str!("../static/index.html"))
 }
@@ -216,7 +237,7 @@ async fn main() -> anyhow::Result<()> {
         log_path: log_path.clone(),
     };
 
-    log_event(&log_path, &format!("Server starting on http://127.0.0.1:3000")).await;
+    log_event(&log_path, &format!("Server starting on http://0.0.0.0:3000")).await;
 
     let app = Router::new()
         .route("/", get(index))
@@ -233,6 +254,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/orders/:user_id", get(list_orders))
         .route("/api/checkout", post(checkout))
         .layer(axum::middleware::from_fn_with_state(state.clone(), logging_middleware))
+        .layer(axum::middleware::from_fn(cors_middleware))
         .with_state(state);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
