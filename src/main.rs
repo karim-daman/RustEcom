@@ -13,12 +13,20 @@ use sqlx::{FromRow, Row, SqlitePool, ValueRef};
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use std::net::SocketAddr;
 use std::path::PathBuf;
+use std::sync::Arc;
+use tokio::fs::OpenOptions;
+use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;
 use uuid::Uuid;
+use chrono::Local;
+use axum::middleware::Next;
+use axum::body::Body;
+use axum::http::Request;
 
 #[derive(Clone)]
 struct AppState {
     pool: SqlitePool,
+    log_path: Arc<PathBuf>,
 }
 
 type ApiResult<T> = Result<T, ApiError>;
@@ -108,6 +116,35 @@ struct CheckoutRequest {
     billing_address_id: Option<Uuid>,
 }
 
+async fn log_event(log_path: &Arc<PathBuf>, event: &str) {
+    let timestamp = Local::now().format("%Y-%m-%d %H:%M:%S%.3f");
+    let log_message = format!("[{}] {}\n", timestamp, event);
+    
+    if let Ok(mut file) = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(log_path.as_path())
+        .await
+    {
+        let _ = file.write_all(log_message.as_bytes()).await;
+        let _ = file.sync_all().await;
+    }
+}
+
+async fn logging_middleware(
+    State(state): State<AppState>,
+    req: Request<Body>,
+    next: Next,
+) -> Response {
+    let method = req.method().clone();
+    let uri = req.uri().clone();
+    
+    let event = format!("{} {}", method, uri);
+    log_event(&state.log_path, &event).await;
+    
+    next.run(req).await
+}
+
 async fn index() -> Html<&'static str> {
     Html(include_str!("../static/index.html"))
 }
@@ -173,7 +210,13 @@ async fn main() -> anyhow::Result<()> {
 
     seed_demo_data(&pool).await?;
 
-    let state = AppState { pool };
+    let log_path = Arc::new(PathBuf::from("server.log"));
+    let state = AppState { 
+        pool,
+        log_path: log_path.clone(),
+    };
+
+    log_event(&log_path, &format!("Server starting on http://127.0.0.1:3000")).await;
 
     let app = Router::new()
         .route("/", get(index))
@@ -189,11 +232,13 @@ async fn main() -> anyhow::Result<()> {
         .route("/api/cart/add", post(add_to_cart))
         .route("/api/orders/:user_id", get(list_orders))
         .route("/api/checkout", post(checkout))
+        .layer(axum::middleware::from_fn_with_state(state.clone(), logging_middleware))
         .with_state(state);
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 8080));
+    let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
     let listener = TcpListener::bind(addr).await?;
     println!("Listening on http://{}", addr);
+    log_event(&log_path, &format!("Server listening on http://{}", addr)).await;
     axum::serve(listener, app).await.unwrap();
 
     Ok(())
