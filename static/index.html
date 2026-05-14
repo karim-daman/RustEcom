@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rustecom CRUD Explorer</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header>
+      <div>
+        <h1>Rustecom CRUD Explorer</h1>
+        <p class="subtitle">Test and perform CRUD operations across all tables.</p>
+      </div>
+      <div class="header-actions">
+        <button id="create-user">Create / Use Demo User</button>
+        <span id="user-info">No demo user yet</span>
+      </div>
+    </header>
+
+    <main>
+      <section>
+        <h2>CRUD Test Panel</h2>
+        <div class="form-grid">
+          <label>
+            Table
+            <select id="table-select"></select>
+          </label>
+          <label>
+            Operation
+            <select id="operation-select">
+              <option value="list">List</option>
+              <option value="get">Get</option>
+              <option value="create">Create</option>
+              <option value="update">Update</option>
+              <option value="delete">Delete</option>
+            </select>
+          </label>
+          <label id="id-label" class="input-group hidden">
+            Row ID
+            <input id="row-id" type="text" placeholder="id or composite id (comma-separated)" />
+          </label>
+          <label id="body-label" class="input-group hidden full-width">
+            JSON Body
+            <textarea id="request-body" rows="14" placeholder='{"id":"...", "name":"..."}'></textarea>
+          </label>
+        </div>
+
+        <div class="button-row">
+          <button id="fill-sample">Fill Sample Body</button>
+          <button id="execute-request">Execute Request</button>
+        </div>
+
+        <div class="info-grid">
+          <div class="info-card">
+            <h3>Request</h3>
+            <pre id="request-display">Select a table and operation to see the request.</pre>
+          </div>
+          <div class="info-card">
+            <h3>Response</h3>
+            <pre id="response-display">Response output appears here.</pre>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Table Metadata</h2>
+        <div id="metadata"></div>
+      </section>
+    </main>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
