@@ -21,6 +21,55 @@
 
     <main>
       <section>
+        <h2>Product Browser</h2>
+        <div class="products-filter-panel">
+          <div class="filter-grid">
+            <label>
+              Search
+              <input id="product-search" type="text" placeholder="Search by title or description..." />
+            </label>
+            <label>
+              Category
+              <select id="product-category">
+                <option value="">All Categories</option>
+              </select>
+            </label>
+            <label>
+              Min Price ($)
+              <input id="product-min-price" type="number" placeholder="0" min="0" />
+            </label>
+            <label>
+              Max Price ($)
+              <input id="product-max-price" type="number" placeholder="No limit" min="0" />
+            </label>
+            <label>
+              Items per page
+              <select id="product-limit">
+                <option value="10">10</option>
+                <option value="20" selected>20</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </label>
+          </div>
+          <div class="button-row">
+            <button id="apply-filters">Apply Filters</button>
+            <button id="clear-filters">Clear Filters</button>
+          </div>
+          <div class="api-call-display">
+            <strong>API Endpoint:</strong>
+            <code id="product-api-endpoint">GET /api/products?limit=20&offset=0</code>
+          </div>
+        </div>
+
+        <div class="products-display">
+          <div id="products-info"></div>
+          <div id="products-grid" class="products-grid"></div>
+          <div id="products-pagination" class="pagination-controls"></div>
+        </div>
+      </section>
+
+      <section>
         <h2>CRUD Test Panel</h2>
         <div class="form-grid">
           <label>

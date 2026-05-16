@@ -1,7 +1,7 @@
 mod schema;
 
 use anyhow::Context;
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::{Html, IntoResponse, Response};
 use axum::routing::{get, post};
@@ -9,7 +9,7 @@ use axum::Json;
 use axum::Router;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use sqlx::{FromRow, Row, SqlitePool, ValueRef};
+use sqlx::{FromRow, Row, SqlitePool, ValueRef, QueryBuilder};
 use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use std::net::SocketAddr;
 use std::path::PathBuf;
@@ -79,7 +79,7 @@ struct PublicUser {
 
 #[derive(Debug, Serialize, FromRow)]
 struct CartItemResponse {
-    product_id: Uuid,
+    product_id: String,
     title: String,
     quantity: i64,
     unit_price_cents: i64,
@@ -88,7 +88,7 @@ struct CartItemResponse {
 
 #[derive(Debug, Serialize, FromRow)]
 struct OrderSummary {
-    id: Uuid,
+    id: String,
     status: String,
     total_cents: i64,
     currency: String,
@@ -114,6 +114,35 @@ struct CheckoutRequest {
     user_id: Uuid,
     shipping_address_id: Option<Uuid>,
     billing_address_id: Option<Uuid>,
+}
+
+#[derive(Debug, Deserialize)]
+struct ListProductsQuery {
+    #[serde(default = "default_limit")]
+    limit: i64,
+    #[serde(default)]
+    offset: i64,
+    #[serde(default)]
+    category_id: Option<String>,
+    #[serde(default)]
+    min_price: Option<i64>,
+    #[serde(default)]
+    max_price: Option<i64>,
+    #[serde(default)]
+    search: Option<String>,
+}
+
+fn default_limit() -> i64 {
+    20
+}
+
+#[derive(Debug, Serialize)]
+struct PaginatedProducts {
+    items: Vec<schema::Product>,
+    total: i64,
+    limit: i64,
+    offset: i64,
+    has_more: bool,
 }
 
 async fn log_event(log_path: &Arc<PathBuf>, event: &str) {
@@ -266,12 +295,60 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn list_products(State(state): State<AppState>) -> ApiResult<Json<Vec<schema::Product>>> {
-    let products = sqlx::query_as::<_, schema::Product>("SELECT * FROM products ORDER BY title")
+async fn list_products(
+    State(state): State<AppState>,
+    Query(params): Query<ListProductsQuery>,
+) -> ApiResult<Json<PaginatedProducts>> {
+    let limit = params.limit.max(1).min(100);
+    let offset = params.offset.max(0);
+
+    let mut base_qb = QueryBuilder::new("SELECT p.* FROM products p LEFT JOIN product_categories pc ON p.id = pc.product_id WHERE p.active = 1");
+    let mut count_qb = QueryBuilder::new("SELECT COUNT(DISTINCT p.id) FROM products p LEFT JOIN product_categories pc ON p.id = pc.product_id WHERE p.active = 1");
+
+    if let Some(category_id) = &params.category_id {
+        base_qb.push(" AND pc.category_id = ").push_bind(category_id);
+        count_qb.push(" AND pc.category_id = ").push_bind(category_id);
+    }
+
+    if let Some(min_price) = params.min_price {
+        base_qb.push(" AND p.price_cents >= ").push_bind(min_price);
+        count_qb.push(" AND p.price_cents >= ").push_bind(min_price);
+    }
+
+    if let Some(max_price) = params.max_price {
+        base_qb.push(" AND p.price_cents <= ").push_bind(max_price);
+        count_qb.push(" AND p.price_cents <= ").push_bind(max_price);
+    }
+
+    if let Some(search) = &params.search {
+        let search_pattern = format!("%{}%", search.replace('%', "\\%").replace('_', "\\_"));
+        base_qb.push(" AND (p.title LIKE ").push_bind(search_pattern.clone()).push(" OR p.description LIKE ").push_bind(search_pattern.clone()).push(")");
+        count_qb.push(" AND (p.title LIKE ").push_bind(search_pattern.clone()).push(" OR p.description LIKE ").push_bind(search_pattern.clone()).push(")");
+    }
+
+    base_qb.push(" GROUP BY p.id ORDER BY p.title LIMIT ").push_bind(limit).push(" OFFSET ").push_bind(offset);
+
+    let total: i64 = count_qb
+        .build_query_scalar::<i64>()
+        .fetch_one(&state.pool)
+        .await
+        .map_err(|err| ApiError::internal(err.to_string()))?;
+
+    let items = base_qb
+        .build_query_as::<schema::Product>()
         .fetch_all(&state.pool)
         .await
         .map_err(|err| ApiError::internal(err.to_string()))?;
-    Ok(Json(products))
+
+    let has_more = offset + limit < total;
+
+    Ok(Json(PaginatedProducts {
+        items,
+        total,
+        limit,
+        offset,
+        has_more,
+    }))
 }
 
 async fn list_categories(State(state): State<AppState>) -> ApiResult<Json<Vec<schema::Category>>> {
@@ -770,12 +847,15 @@ async fn seed_demo_data(pool: &SqlitePool) -> anyhow::Result<()> {
         .fetch_one(pool)
         .await?;
 
-    if product_count >= 100 {
+    if product_count >= 500 {
         return Ok(());
     }
 
     let electronics_id = Uuid::new_v4();
     let kitchen_id = Uuid::new_v4();
+    let fashion_id = Uuid::new_v4();
+    let home_id = Uuid::new_v4();
+    let sports_id = Uuid::new_v4();
 
     sqlx::query("INSERT OR IGNORE INTO categories (id, slug, name, description) VALUES (?, ?, ?, ?)")
         .bind(electronics_id.to_string())
@@ -793,6 +873,30 @@ async fn seed_demo_data(pool: &SqlitePool) -> anyhow::Result<()> {
         .execute(pool)
         .await?;
 
+    sqlx::query("INSERT OR IGNORE INTO categories (id, slug, name, description) VALUES (?, ?, ?, ?)")
+        .bind(fashion_id.to_string())
+        .bind("fashion")
+        .bind("Fashion")
+        .bind("Clothing and accessories")
+        .execute(pool)
+        .await?;
+
+    sqlx::query("INSERT OR IGNORE INTO categories (id, slug, name, description) VALUES (?, ?, ?, ?)")
+        .bind(home_id.to_string())
+        .bind("home")
+        .bind("Home & Garden")
+        .bind("Furniture and home decor")
+        .execute(pool)
+        .await?;
+
+    sqlx::query("INSERT OR IGNORE INTO categories (id, slug, name, description) VALUES (?, ?, ?, ?)")
+        .bind(sports_id.to_string())
+        .bind("sports")
+        .bind("Sports & Outdoors")
+        .bind("Sporting goods and equipment")
+        .execute(pool)
+        .await?;
+
     let electronics_id: Uuid = Uuid::parse_str(
         &sqlx::query_scalar::<_, String>("SELECT id FROM categories WHERE slug = ?")
             .bind("electronics")
@@ -807,7 +911,28 @@ async fn seed_demo_data(pool: &SqlitePool) -> anyhow::Result<()> {
             .await?,
     )?;
 
-    for i in (product_count + 1)..=100 {
+    let fashion_id: Uuid = Uuid::parse_str(
+        &sqlx::query_scalar::<_, String>("SELECT id FROM categories WHERE slug = ?")
+            .bind("fashion")
+            .fetch_one(pool)
+            .await?,
+    )?;
+
+    let home_id: Uuid = Uuid::parse_str(
+        &sqlx::query_scalar::<_, String>("SELECT id FROM categories WHERE slug = ?")
+            .bind("home")
+            .fetch_one(pool)
+            .await?,
+    )?;
+
+    let sports_id: Uuid = Uuid::parse_str(
+        &sqlx::query_scalar::<_, String>("SELECT id FROM categories WHERE slug = ?")
+            .bind("sports")
+            .fetch_one(pool)
+            .await?,
+    )?;
+
+    for i in (product_count + 1)..=500 {
         let id = Uuid::new_v4();
         let sku = format!("FAKE-{i:03}");
         let title = format!("Fake Product {i}");
@@ -820,7 +945,13 @@ async fn seed_demo_data(pool: &SqlitePool) -> anyhow::Result<()> {
         ]);
 
         let images_json = serde_json::to_string(&images)?;
-        let category_id = if i % 2 == 0 { electronics_id } else { kitchen_id };
+        let category_id = match i % 5 {
+            0 => electronics_id,
+            1 => kitchen_id,
+            2 => fashion_id,
+            3 => home_id,
+            _ => sports_id,
+        };
 
         sqlx::query("INSERT INTO products (id, sku, title, description, price_cents, currency, active, images) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
             .bind(id.to_string())
