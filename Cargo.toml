@@ -16,3 +16,4 @@ axum-extra = { version = "0.9", features = ["typed-header"] }
 uuid = { version = "1.4", features = ["serde", "v4"] }
 chrono = { version = "0.4", features = ["serde"] }
 tokio-util = "0.7"
+hyper = { version = "0.14", features = ["full"] }

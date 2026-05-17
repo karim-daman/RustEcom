@@ -287,9 +287,18 @@ async fn main() -> anyhow::Result<()> {
         .with_state(state);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
-    let listener = TcpListener::bind(addr).await?;
     println!("Listening on http://{}", addr);
     log_event(&log_path, &format!("Server listening on http://{}", addr)).await;
+
+    let listener = TcpListener::bind(addr).await?;
+
+    let log_path_clone = log_path.clone();
+    tokio::spawn(async move {
+        tokio::signal::ctrl_c().await.expect("failed to listen for ctrl_c");
+        log_event(&log_path_clone, "Shutdown signal received").await;
+        std::process::exit(0);
+    });
+
     axum::serve(listener, app).await.unwrap();
 
     Ok(())

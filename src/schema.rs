@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use serde::{Deserialize, Serialize};
 use sqlx::types::Json;
 use sqlx::{Row, sqlite::SqliteRow};
