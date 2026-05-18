@@ -343,11 +343,21 @@ async fn list_products(
         .await
         .map_err(|err| ApiError::internal(err.to_string()))?;
 
-    let items = base_qb
+    let mut items = base_qb
         .build_query_as::<schema::Product>()
         .fetch_all(&state.pool)
         .await
         .map_err(|err| ApiError::internal(err.to_string()))?;
+
+    // Apply best available discount per product (category-based or price-based)
+    for product in items.iter_mut() {
+        let percent = get_best_discount_percent(&state.pool, &product.id, product.price_cents)
+            .await
+            .map_err(|err| ApiError::internal(err.to_string()))?;
+        if percent > 0 {
+            product.price_cents = apply_percent(product.price_cents, percent);
+        }
+    }
 
     let has_more = offset + limit < total;
 
@@ -366,6 +376,27 @@ async fn list_categories(State(state): State<AppState>) -> ApiResult<Json<Vec<sc
         .await
         .map_err(|err| ApiError::internal(err.to_string()))?;
     Ok(Json(categories))
+}
+
+async fn get_best_discount_percent(pool: &SqlitePool, product_id: &Uuid, price_cents: i64) -> Result<i64, sqlx::Error> {
+    let pid = product_id.to_string();
+    let percent: Option<i64> = sqlx::query_scalar(
+        "SELECT MAX(percent) FROM discounts WHERE active = 1 AND (\
+            (category_id IS NOT NULL AND category_id IN (SELECT category_id FROM product_categories WHERE product_id = ?))\
+            OR\
+            ((min_price_cents IS NULL OR min_price_cents <= ?) AND (max_price_cents IS NULL OR max_price_cents >= ?))\
+        )"
+    )
+    .bind(pid)
+    .bind(price_cents)
+    .bind(price_cents)
+    .fetch_one(pool)
+    .await?;
+    Ok(percent.unwrap_or(0))
+}
+
+fn apply_percent(price_cents: i64, percent: i64) -> i64 {
+    price_cents - (price_cents * percent / 100)
 }
 
 async fn create_demo_user(State(state): State<AppState>) -> ApiResult<Json<PublicUser>> {
@@ -414,6 +445,20 @@ async fn get_cart(Path(user_id): Path<Uuid>, State(state): State<AppState>) -> A
     .fetch_all(&state.pool)
     .await
     .map_err(|err| ApiError::internal(err.to_string()))?;
+    let mut items = items;
+
+    // Apply discounts per item
+    for item in items.iter_mut() {
+        if let Ok(pid) = Uuid::parse_str(&item.product_id) {
+            let percent = get_best_discount_percent(&state.pool, &pid, item.unit_price_cents)
+                .await
+                .map_err(|err| ApiError::internal(err.to_string()))?;
+            if percent > 0 {
+                item.unit_price_cents = apply_percent(item.unit_price_cents, percent);
+                item.subtotal_cents = item.unit_price_cents * item.quantity;
+            }
+        }
+    }
 
     let total_cents = items.iter().map(|item| item.subtotal_cents).sum();
     Ok(Json(CartResponse {
@@ -475,9 +520,22 @@ async fn checkout(
     .fetch_all(&state.pool)
     .await
     .map_err(|err| ApiError::internal(err.to_string()))?;
+    let mut items = items;
 
     if items.is_empty() {
         return Err(ApiError::bad_request("Cart is empty"));
+    }
+    // Apply discounts to items before computing totals and creating order
+    for item in items.iter_mut() {
+        if let Ok(pid) = Uuid::parse_str(&item.product_id) {
+            let percent = get_best_discount_percent(&state.pool, &pid, item.unit_price_cents)
+                .await
+                .map_err(|err| ApiError::internal(err.to_string()))?;
+            if percent > 0 {
+                item.unit_price_cents = apply_percent(item.unit_price_cents, percent);
+                item.subtotal_cents = item.unit_price_cents * item.quantity;
+            }
+        }
     }
 
     let total_cents: i64 = items.iter().map(|item| item.subtotal_cents).sum();
@@ -595,6 +653,13 @@ const TABLE_METADATA: &[(&str, TableMeta)] = &[
         "products",
         TableMeta {
             columns: &["id", "sku", "title", "description", "price_cents", "currency", "active", "images", "created_at", "updated_at"],
+            pk: &["id"],
+        },
+    ),
+    (
+        "discounts",
+        TableMeta {
+            columns: &["id", "name", "percent", "category_id", "min_price_cents", "max_price_cents", "active", "created_at", "updated_at"],
             pk: &["id"],
         },
     ),
@@ -912,6 +977,29 @@ async fn seed_demo_data(pool: &SqlitePool) -> anyhow::Result<()> {
             .fetch_one(pool)
             .await?,
     )?;
+
+    // Seed example discounts: 10% off electronics, 5% off items over $50 (5000 cents)
+    sqlx::query("INSERT OR IGNORE INTO discounts (id, name, percent, category_id, min_price_cents, max_price_cents, active) VALUES (?, ?, ?, ?, ?, ?, ?)")
+        .bind(Uuid::new_v4().to_string())
+        .bind("Electronics 10%")
+        .bind(10)
+        .bind(electronics_id.to_string())
+        .bind(None::<i64>)
+        .bind(None::<i64>)
+        .bind(1)
+        .execute(pool)
+        .await?;
+
+    sqlx::query("INSERT OR IGNORE INTO discounts (id, name, percent, category_id, min_price_cents, max_price_cents, active) VALUES (?, ?, ?, ?, ?, ?, ?)")
+        .bind(Uuid::new_v4().to_string())
+        .bind("Over $50 5%")
+        .bind(5)
+        .bind(None::<String>)
+        .bind(5000)
+        .bind(None::<i64>)
+        .bind(1)
+        .execute(pool)
+        .await?;
 
     let kitchen_id: Uuid = Uuid::parse_str(
         &sqlx::query_scalar::<_, String>("SELECT id FROM categories WHERE slug = ?")

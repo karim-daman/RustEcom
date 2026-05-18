@@ -91,6 +91,35 @@ impl sqlx::FromRow<'_, SqliteRow> for Category {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Discount {
+    pub id: Uuid,
+    pub name: String,
+    pub percent: i64,
+    pub category_id: Option<Uuid>,
+    pub min_price_cents: Option<i64>,
+    pub max_price_cents: Option<i64>,
+    pub active: bool,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+impl sqlx::FromRow<'_, SqliteRow> for Discount {
+    fn from_row(row: &SqliteRow) -> Result<Self, sqlx::Error> {
+        Ok(Discount {
+            id: Uuid::parse_str(&row.try_get::<String, _>("id")?).map_err(|e| sqlx::Error::Decode(Box::new(e)))?,
+            name: row.try_get("name")?,
+            percent: row.try_get("percent")?,
+            category_id: row.try_get::<Option<String>, _>("category_id")?.and_then(|s| Uuid::parse_str(&s).ok()),
+            min_price_cents: row.try_get("min_price_cents")?,
+            max_price_cents: row.try_get("max_price_cents")?,
+            active: row.try_get::<i64, _>("active")? != 0,
+            created_at: row.try_get("created_at")?,
+            updated_at: row.try_get("updated_at")?,
+        })
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Product {
     pub id: Uuid,
     pub sku: String,

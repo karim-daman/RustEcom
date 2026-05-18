@@ -103,8 +103,6 @@
         min-height: 100vh;
         overflow-x: hidden;
       }
-      /* Locking scroll without layout shift: overflow:hidden on html
-         keeps the scrollbar-gutter space reserved (no reflow) */
       html.scroll-locked {
         overflow: hidden;
       }
@@ -487,7 +485,7 @@
           border-color var(--transition),
           background var(--transition);
       }
-      .search-input {
+      input.search-input {
         padding-left: 36px;
       }
       input:focus,
@@ -766,6 +764,7 @@
         background: var(--bg3);
         flex-shrink: 0;
         border-bottom: 1px solid var(--border);
+        position: relative;
       }
       .card-img img {
         width: 100%;
@@ -773,6 +772,22 @@
         object-fit: cover;
         display: block;
         transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      /* ── DISCOUNT BADGE (card image overlay) ── */
+      .card-discount-badge {
+        position: absolute;
+        top: 8px;
+        left: 8px;
+        background: var(--red);
+        color: #fff;
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        padding: 3px 7px;
+        border-radius: 3px;
+        z-index: 1;
+        pointer-events: none;
       }
       .card-body {
         padding: 13px;
@@ -808,12 +823,28 @@
         padding-top: 10px;
         border-top: 1px solid var(--border);
       }
+      /* ── PRICE DISPLAY (with optional original strike-through) ── */
+      .card-price-wrap {
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+      }
+      .card-price-original {
+        font-family: "DM Mono", monospace;
+        font-size: 10px;
+        color: var(--text3);
+        text-decoration: line-through;
+        line-height: 1;
+      }
       .card-price {
         font-family: "Cormorant Garamond", serif;
         font-size: 22px;
         font-weight: 400;
         color: var(--gold);
         line-height: 1;
+      }
+      .card-price.discounted {
+        color: var(--red);
       }
       .card-price sup {
         font-size: 12px;
@@ -910,6 +941,89 @@
         color: var(--text3);
         padding: 0 4px;
         font-family: "DM Mono", monospace;
+      }
+
+      /* ── PROMOTIONS SIDEBAR ── */
+      .promo-list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .promo-item {
+        display: grid;
+        grid-template-columns: 46px 1fr;
+        gap: 10px;
+        align-items: center;
+        padding: 9px 10px;
+        background: var(--bg2);
+        border: 1px solid rgba(200, 84, 84, 0.22);
+        border-radius: var(--radius);
+        transition: border-color var(--transition);
+      }
+      .promo-item:hover {
+        border-color: rgba(200, 84, 84, 0.5);
+      }
+      .promo-percent-block {
+        text-align: center;
+        background: rgba(200, 84, 84, 0.1);
+        border-radius: 4px;
+        padding: 5px 4px 3px;
+      }
+      .promo-percent-num {
+        font-family: "Cormorant Garamond", serif;
+        font-size: 20px;
+        font-weight: 500;
+        color: var(--red);
+        line-height: 1;
+        display: block;
+      }
+      .promo-percent-off {
+        font-size: 8px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--red);
+        opacity: 0.75;
+      }
+      .promo-info {
+        min-width: 0;
+      }
+      .promo-name {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .promo-scope {
+        font-size: 10px;
+        color: var(--text3);
+        margin-top: 2px;
+        line-height: 1.4;
+      }
+      .promo-empty {
+        font-size: 11px;
+        color: var(--text3);
+        font-style: italic;
+        padding: 4px 2px;
+      }
+      .promo-loading {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 11px;
+        color: var(--text3);
+        padding: 4px 0;
+      }
+      .promo-spinner {
+        width: 12px;
+        height: 12px;
+        border: 1.5px solid var(--border);
+        border-top-color: var(--red);
+        border-radius: 50%;
+        animation: spin 0.5s linear infinite;
+        flex-shrink: 0;
       }
 
       /* PRODUCT MODAL */
@@ -1038,6 +1152,30 @@
         color: var(--text3);
         margin-bottom: 18px;
       }
+      /* ── MODAL DISCOUNT DISPLAY ── */
+      .modal-discount-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        background: rgba(200, 84, 84, 0.12);
+        border: 1px solid rgba(200, 84, 84, 0.35);
+        color: var(--red);
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        padding: 3px 8px;
+        border-radius: 3px;
+        margin-bottom: 6px;
+        width: fit-content;
+      }
+      .modal-original-price {
+        font-family: "DM Mono", monospace;
+        font-size: 12px;
+        color: var(--text3);
+        text-decoration: line-through;
+        margin-bottom: 2px;
+      }
       .modal-price {
         font-family: "Cormorant Garamond", serif;
         font-size: 42px;
@@ -1045,6 +1183,9 @@
         color: var(--gold);
         line-height: 1;
         margin-bottom: 4px;
+      }
+      .modal-price.discounted {
+        color: var(--red);
       }
       .modal-price sup {
         font-size: 20px;
@@ -1417,6 +1558,16 @@
       .table-nav-item.active .dot {
         opacity: 1;
       }
+      /* Highlight discounts table in nav */
+      .table-nav-item[id="tn-discounts"] {
+        color: rgba(200, 84, 84, 0.75);
+      }
+      .table-nav-item[id="tn-discounts"].active {
+        color: var(--red);
+      }
+      .table-nav-item[id="tn-discounts"].active .dot {
+        background: var(--red);
+      }
       .data-panel {
         padding: 0 0 0 32px;
       }
@@ -1559,9 +1710,21 @@
         color: var(--red);
         border-color: rgba(200, 84, 84, 0.5);
       }
+      /* Discount percent pill in admin table */
+      .td-percent-pill {
+        display: inline-flex;
+        align-items: center;
+        background: rgba(200, 84, 84, 0.12);
+        border: 1px solid rgba(200, 84, 84, 0.3);
+        color: var(--red);
+        font-size: 11px;
+        font-weight: 600;
+        padding: 1px 7px;
+        border-radius: 20px;
+        white-space: nowrap;
+      }
 
       /* ── ORDER EXPAND ROW ── */
-      /* The data row itself gets a clickable style when table is orders */
       tr.order-data-row {
         cursor: pointer;
       }
@@ -1575,7 +1738,6 @@
         color: var(--text) !important;
         border-bottom: none;
       }
-      /* The chevron cell */
       .expand-chevron {
         display: inline-flex;
         align-items: center;
@@ -1592,7 +1754,6 @@
         transform: rotate(180deg);
         color: var(--gold);
       }
-      /* The expandable sub-row */
       tr.order-expand-row td {
         padding: 0 !important;
         background: var(--bg) !important;
@@ -1643,7 +1804,6 @@
         color: var(--text3);
         font-family: "DM Mono", monospace;
       }
-      /* Mini items grid inside expand */
       .order-items-grid {
         display: flex;
         flex-direction: column;
@@ -1651,7 +1811,6 @@
         max-height: 260px;
         overflow-y: auto;
         padding-right: 4px;
-        /* custom thin scrollbar inside the expand panel */
         scrollbar-width: thin;
         scrollbar-color: var(--border2) transparent;
       }
@@ -2017,7 +2176,7 @@
       <div class="container">
         <div class="shop-header">
           <h1 class="shop-title display">Curated <em>Collection</em></h1>
-          <p class="shop-subtitle">500 products · 5 categories</p>
+          <p class="shop-subtitle" id="shop-subtitle">Loading catalogue…</p>
         </div>
         <div class="shop-layout">
           <aside class="sidebar">
@@ -2070,6 +2229,30 @@
                   <option value="price_asc">Price: Low → High</option>
                   <option value="price_desc">Price: High → Low</option>
                 </select>
+              </div>
+            </div>
+            <!-- ── ACTIVE PROMOTIONS SIDEBAR SECTION ── -->
+            <div class="filter-block">
+              <button class="filter-toggle open" id="toggle-promos" onclick="toggleFilter('promos-body', 'toggle-promos')" style="color: var(--red)">
+                <span style="display: flex; align-items: center; gap: 6px">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <polyline points="20 12 20 22 4 22 4 12" />
+                    <rect x="2" y="7" width="20" height="5" />
+                    <path d="M12 22V7" />
+                    <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z" />
+                    <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" />
+                  </svg>
+                  Active Offers
+                </span>
+                <svg class="filter-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="6 9 12 15 18 9" /></svg>
+              </button>
+              <div class="filter-body open" id="promos-body" style="background: var(--bg)">
+                <div id="promo-list-container">
+                  <div class="promo-loading">
+                    <div class="promo-spinner"></div>
+                    Loading offers…
+                  </div>
+                </div>
               </div>
             </div>
             <button class="btn-reset" onclick="resetFilters()">↺ Reset Filters</button>
@@ -2125,6 +2308,8 @@
             <div class="modal-tag" id="modal-tag">Product</div>
             <h2 class="modal-title display" id="modal-title"></h2>
             <div class="modal-sku mono" id="modal-sku"></div>
+            <!-- discount badge + original price injected here by JS -->
+            <div id="modal-discount-area"></div>
             <div class="modal-price display" id="modal-price"></div>
             <div class="modal-currency" id="modal-currency"></div>
             <div class="modal-divider"></div>
@@ -2184,9 +2369,15 @@
 
     <script>
       const API = "http://localhost:3000";
-      //const API = "http://130.110.243.212:3000";
 
-      const PRICE_MAX = 700;
+      let PRICE_MAX = 700;
+
+      // Image cache keyed by product ID
+      const productImageCache = {};
+      // Original (pre-discount) price cache keyed by product ID
+      const originalPriceCache = {};
+      // Category name lookup keyed by category ID
+      const categoryNameCache = {};
 
       let state = {
         user: null,
@@ -2199,8 +2390,7 @@
         searchDebounce: null,
         currentProduct: null,
         modalQty: 1,
-        // track which order rows are expanded and their cached items
-        expandedOrders: new Map(), // orderId -> 'loading' | [] items
+        expandedOrders: new Map(),
         admin: {
           tables: [],
           currentTable: null,
@@ -2332,10 +2522,58 @@
         }
       }
 
+      /* ── PROMOTIONS SIDEBAR ── */
+      async function loadPromotions() {
+        const container = $("promo-list-container");
+        try {
+          const discounts = await api("GET", "/api/table/discounts");
+          const active = discounts.filter((d) => d.active === true || d.active === 1 || d.active === "1");
+
+          if (!active.length) {
+            container.innerHTML = `<p class="promo-empty">No active offers right now.</p>`;
+            return;
+          }
+
+          container.innerHTML = `<div class="promo-list">${active
+            .map((d) => {
+              let scope = "";
+              if (d.category_id) {
+                const catName = categoryNameCache[d.category_id] || "Selected category";
+                scope = `On all <strong style="color:var(--text2)">${catName}</strong> items`;
+              } else if (d.min_price_cents != null && d.max_price_cents != null) {
+                scope = `Items ${fmtPrice(d.min_price_cents)} – ${fmtPrice(d.max_price_cents)}`;
+              } else if (d.min_price_cents != null) {
+                scope = `Items over ${fmtPrice(d.min_price_cents)}`;
+              } else if (d.max_price_cents != null) {
+                scope = `Items under ${fmtPrice(d.max_price_cents)}`;
+              } else {
+                scope = "All items";
+              }
+              return `<div class="promo-item">
+              <div class="promo-percent-block">
+                <span class="promo-percent-num">${d.percent}</span>
+                <span class="promo-percent-off">% off</span>
+              </div>
+              <div class="promo-info">
+                <div class="promo-name">${d.name}</div>
+                <div class="promo-scope">${scope}</div>
+              </div>
+            </div>`;
+            })
+            .join("")}</div>`;
+        } catch (e) {
+          container.innerHTML = `<p class="promo-empty">Could not load offers.</p>`;
+        }
+      }
+
       /* PRODUCTS */
       async function fetchCategories() {
         try {
           state.categories = await api("GET", "/api/categories");
+          // Populate the category name cache for promo display
+          state.categories.forEach((c) => {
+            categoryNameCache[c.id] = c.name;
+          });
           const list = $("category-list");
           list.innerHTML = `<div class="category-item active" data-id="" onclick="selectCategory(this,'')"><span>All Categories</span></div>`;
           state.categories.forEach((cat) => {
@@ -2348,6 +2586,49 @@
           });
         } catch (e) {
           console.warn("Categories:", e.message);
+        }
+      }
+
+      async function fetchAllProductsForCache() {
+        try {
+          // Fetch discounted prices (what users actually pay)
+          const data = await api("GET", "/api/products?limit=500");
+          const items = data.items || [];
+
+          if (!items.length) return;
+
+          items.forEach((p) => {
+            const imgs = Array.isArray(p.images) ? p.images : [];
+            productImageCache[p.id] = imgs[0] || `https://picsum.photos/seed/${p.sku}/640/480`;
+          });
+
+          const maxCents = Math.max(...items.map((p) => p.price_cents || 0));
+          const maxDollars = Math.ceil(maxCents / 100);
+          PRICE_MAX = Math.ceil(maxDollars / 50) * 50;
+
+          const minS = $("price-slider-min");
+          const maxS = $("price-slider-max");
+          minS.max = PRICE_MAX;
+          maxS.max = PRICE_MAX;
+          minS.value = 0;
+          maxS.value = PRICE_MAX;
+
+          const catCount = state.categories.length;
+          $("shop-subtitle").textContent = `${data.total} products · ${catCount} categories`;
+
+          initDualSlider();
+
+          // Also fetch raw (pre-discount) prices from the table API for comparison
+          try {
+            const rawProducts = await api("GET", "/api/table/products");
+            rawProducts.forEach((p) => {
+              originalPriceCache[p.id] = p.price_cents;
+            });
+          } catch (e) {
+            console.warn("Could not fetch raw prices for discount comparison:", e.message);
+          }
+        } catch (e) {
+          console.warn("fetchAllProductsForCache:", e.message);
         }
       }
 
@@ -2421,9 +2702,27 @@
           .map((p) => {
             const imgs = Array.isArray(p.images) ? p.images : [];
             const img = imgs[0] || `https://picsum.photos/seed/${p.sku}/640/480`;
+            productImageCache[p.id] = img;
+
             const desc = trunc(p.description || "", 70);
+
+            // Discount detection: compare discounted price vs raw original price
+            const originalCents = originalPriceCache[p.id];
+            const isDiscounted = originalCents && originalCents > p.price_cents;
+            const discountPct = isDiscounted ? Math.round((1 - p.price_cents / originalCents) * 100) : 0;
+
+            const discountBadge = isDiscounted ? `<span class="card-discount-badge">−${discountPct}%</span>` : "";
+
+            const priceHtml = isDiscounted
+              ? `<div class="card-price-wrap">
+                   <span class="card-price-original">${fmtPrice(originalCents)}</span>
+                   <span class="card-price discounted display"><sup>$</sup>${(p.price_cents / 100).toFixed(2)}</span>
+                 </div>`
+              : `<span class="card-price display"><sup>$</sup>${(p.price_cents / 100).toFixed(2)}</span>`;
+
             return `<div class="product-card" onclick="openProduct('${p.id}')">
       <div class="card-img">
+        ${discountBadge}
         <img src="${img}" alt="${p.title}" loading="lazy" onerror="this.src='https://picsum.photos/seed/${p.id}/640/480'" />
       </div>
       <div class="card-body">
@@ -2431,7 +2730,7 @@
         <div class="card-title">${p.title}</div>
         ${desc ? `<div class="card-desc">${desc}</div>` : ""}
         <div class="card-footer">
-          <span class="card-price display"><sup>$</sup>${(p.price_cents / 100).toFixed(2)}</span>
+          ${priceHtml}
           <button class="btn-add" onclick="event.stopPropagation();quickAdd('${p.id}')" title="Add to cart">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           </button>
@@ -2484,6 +2783,7 @@
       /* PRODUCT MODAL */
       async function openProduct(id) {
         try {
+          // Table API returns raw (pre-discount) price
           const p = await api("GET", `/api/table/products/${id}`);
           state.currentProduct = p;
           state.modalQty = 1;
@@ -2496,7 +2796,9 @@
               images = JSON.parse(p.images);
             } catch {}
           }
-          if (!images.length) images = [`https://picsum.photos/seed/${p.id}/640/480`];
+          if (!images.length) images = [`https://picsum.photos/seed/${p.sku}/640/480`];
+
+          productImageCache[p.id] = images[0];
 
           const mainImg = $("modal-main-img");
           mainImg.src = images[0];
@@ -2514,7 +2816,32 @@
           $("modal-tag").textContent = "Product Details";
           $("modal-title").textContent = p.title;
           $("modal-sku").textContent = `SKU: ${p.sku}`;
-          $("modal-price").innerHTML = `<sup>$</sup>${(p.price_cents / 100).toFixed(2)}`;
+
+          // ── DISCOUNT DISPLAY IN MODAL ──
+          const rawCents = p.price_cents; // un-discounted price from table API
+          const discountedCents = originalPriceCache[id]; // discounted price from /api/products
+          // discountedCents is populated by fetchAllProductsForCache;
+          // if it's less than raw, a discount was applied
+          const hasDiscount = discountedCents != null && discountedCents < rawCents;
+          const displayCents = hasDiscount ? discountedCents : rawCents;
+          const discountAreaEl = $("modal-discount-area");
+          const priceEl = $("modal-price");
+
+          if (hasDiscount) {
+            const pct = Math.round((1 - discountedCents / rawCents) * 100);
+            discountAreaEl.innerHTML = `
+              <div class="modal-discount-badge">
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><path d="M12 22V7m0 0H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
+                ${pct}% off applied
+              </div>
+              <div class="modal-original-price">${fmtPrice(rawCents)}</div>`;
+            priceEl.className = "modal-price display discounted";
+          } else {
+            discountAreaEl.innerHTML = "";
+            priceEl.className = "modal-price display";
+          }
+
+          priceEl.innerHTML = `<sup>$</sup>${(displayCents / 100).toFixed(2)}`;
           $("modal-currency").textContent = `Currency: ${p.currency || "USD"}`;
           $("modal-desc").textContent = p.description || "No description available.";
 
@@ -2666,20 +2993,29 @@
         }
 
         list.innerHTML = items
-          .map(
-            (item) => `
+          .map((item) => {
+            const cachedImg = productImageCache[item.product_id];
+            const thumbSrc = cachedImg || `https://picsum.photos/seed/${item.sku || item.product_id}/140/140`;
+
+            // Show discount indicator in cart if the item has a discount applied
+            const rawCents = originalPriceCache[item.product_id];
+            const isDiscounted = rawCents && rawCents > item.unit_price_cents;
+            const discountNote = isDiscounted ? `<span style="color:var(--red);font-size:9px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;margin-left:4px">SALE</span>` : "";
+
+            return `
     <div class="cart-item">
-      <img class="cart-item-img" src="https://picsum.photos/seed/${item.product_id}/140/140" alt="${item.title}" onerror="this.src='https://picsum.photos/seed/fallback/140/140'" />
+      <img class="cart-item-img" src="${thumbSrc}" alt="${item.title}"
+           onerror="this.src='https://picsum.photos/seed/fallback${item.product_id}/140/140'" />
       <div class="cart-item-body">
-        <div class="cart-item-title">${item.title}</div>
+        <div class="cart-item-title">${item.title}${discountNote}</div>
         <div class="cart-item-qty">× ${item.quantity} @ ${fmtPrice(item.unit_price_cents)}</div>
         <div class="cart-item-bottom">
           <span class="cart-item-price display">${fmtPrice(item.subtotal_cents)}</span>
           <button class="btn-remove-item" onclick="removeCartItem('${item.product_id}')">Remove</button>
         </div>
       </div>
-    </div>`,
-          )
+    </div>`;
+          })
           .join("");
 
         $("cart-total").textContent = fmtPrice(state.cart.total_cents);
@@ -2731,7 +3067,6 @@
         state.admin.sortDir = "asc";
         state.admin.filter = "";
         state.admin.meta = state.admin.tables.find((t) => t.name === name);
-        // clear expanded orders when switching tables
         state.expandedOrders.clear();
         document.querySelectorAll(".table-nav-item").forEach((b) => b.classList.remove("active"));
         const btn = $(`tn-${name}`);
@@ -2752,6 +3087,10 @@
 
       function isOrdersTable() {
         return state.admin.currentTable === "orders";
+      }
+
+      function isDiscountsTable() {
+        return state.admin.currentTable === "discounts";
       }
 
       function renderDataPanel() {
@@ -2783,9 +3122,13 @@
         const displayCols = cols.length > MAX ? cols.slice(0, MAX) : cols;
         const extra = cols.length - displayCols.length;
         const isOrders = isOrdersTable();
+        const isDiscounts = isDiscountsTable();
 
-        // Hint text for expandable rows
-        const hintHtml = isOrders ? `<span style="font-size:10px;color:var(--text3);font-weight:400;margin-left:8px">↕ click a row to view items</span>` : "";
+        const hintHtml = isOrders
+          ? `<span style="font-size:10px;color:var(--text3);font-weight:400;margin-left:8px">↕ click a row to view items</span>`
+          : isDiscounts
+            ? `<span style="font-size:10px;color:rgba(200,84,84,0.7);font-weight:400;margin-left:8px">● discount rules applied at checkout</span>`
+            : "";
 
         panel.innerHTML = `
     <div class="data-toolbar">
@@ -2815,11 +3158,21 @@
                     .map((col) => {
                       const val = row[col];
                       let disp;
-                      if (val === null || val === undefined) disp = `<span style="color:var(--text3);font-style:italic">null</span>`;
-                      else if (col === "is_active" || col === "active" || col === "is_default")
+                      if (val === null || val === undefined) {
+                        disp = `<span style="color:var(--text3);font-style:italic">null</span>`;
+                      } else if (col === "is_active" || col === "active" || col === "is_default") {
                         disp = val === true || val === 1 || val === "1" ? '<span class="bool-true">✓</span>' : '<span class="bool-false">✗</span>';
-                      else if (typeof val === "object") disp = `<span style="color:var(--text3)">[JSON]</span>`;
-                      else {
+                      } else if (isDiscounts && col === "percent") {
+                        // Render discount percent as a styled pill
+                        disp = `<span class="td-percent-pill">−${val}%</span>`;
+                      } else if (isDiscounts && (col === "min_price_cents" || col === "max_price_cents") && val != null) {
+                        disp = fmtPrice(Number(val));
+                      } else if (isDiscounts && col === "category_id" && val) {
+                        const catName = categoryNameCache[val] || val;
+                        disp = `<span title="${val}">${catName}</span>`;
+                      } else if (typeof val === "object") {
+                        disp = `<span style="color:var(--text3)">[JSON]</span>`;
+                      } else {
                         const s = String(val);
                         disp = s.length > 44 ? s.slice(0, 44) + "…" : s;
                       }
@@ -2827,7 +3180,7 @@
                     })
                     .join("");
 
-                  let rowsHtml = `<tr class="order-data-row${isOrders ? "" : ""} ${isOrders && isExpanded ? "expanded" : ""}"
+                  let rowsHtml = `<tr class="order-data-row ${isOrders && isExpanded ? "expanded" : ""}"
                   id="odr-${orderId}"
                   ${isOrders ? `onclick="toggleOrderExpand('${orderId}', '${pkStr}', this)"` : ""}>
                   ${
@@ -2847,7 +3200,6 @@
                   </div></td>
                 </tr>`;
 
-                  // Inject the expand row right after, open if already in state
                   if (isOrders) {
                     const cachedItems = state.expandedOrders.get(orderId);
                     const innerContent = cachedItems && cachedItems !== "loading" ? buildOrderItemsHtml(cachedItems) : cachedItems === "loading" ? buildOrderLoadingHtml() : "";
@@ -2880,36 +3232,29 @@
         const isOpen = inner.classList.contains("open");
 
         if (isOpen) {
-          // Collapse
           inner.classList.remove("open");
           dataRow.classList.remove("expanded");
           return;
         }
 
-        // Expand
         inner.classList.add("open");
         dataRow.classList.add("expanded");
 
-        // If already fetched and cached, nothing to do
         if (state.expandedOrders.has(orderId) && state.expandedOrders.get(orderId) !== "loading") return;
 
-        // Show loading state
         state.expandedOrders.set(orderId, "loading");
         const contentEl = $(`odr-content-${orderId}`);
         contentEl.innerHTML = buildOrderLoadingHtml();
 
         try {
-          // Try fetching by order_id first, then cart_id, then all items filtered
           const row = state.admin.rows.find((r) => String(r[state.admin.meta.primary_keys[0]]) === String(orderId));
           let items = [];
 
-          // Strategy 1: fetch order_items table filtered by order_id
           try {
             const allItems = await api("GET", "/api/table/order_items");
             items = allItems.filter((i) => String(i.order_id) === String(orderId));
           } catch (_) {}
 
-          // Strategy 2: if order has a cart_id, try cart_items filtered by cart_id
           if (!items.length && row && row.cart_id) {
             try {
               const allCartItems = await api("GET", "/api/table/cart_items");
@@ -2917,7 +3262,6 @@
             } catch (_) {}
           }
 
-          // Strategy 3: try direct fetch by compound key if API supports it
           if (!items.length) {
             try {
               const result = await api("GET", `/api/orders/${orderId}/items`);
@@ -2958,15 +3302,20 @@
             totalCents += subtotal;
 
             const productId = item.product_id || item.id || "";
-            const imgSrc = `https://picsum.photos/seed/${productId || item.sku || Math.random()}/120/120`;
+            const imgSrc = productImageCache[productId] || `https://picsum.photos/seed/${productId || item.sku || Math.random()}/120/120`;
             const name = item.title || item.name || item.product_title || item.sku || `Item ${productId}`;
             const sku = item.sku ? `<span class="order-item-meta">${item.sku}</span>` : "";
+
+            // Show discount badge inside order item row if applicable
+            const rawCents = originalPriceCache[productId];
+            const discountNote =
+              rawCents && rawCents > unitCents ? `<span style="color:var(--red);font-size:9px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;margin-left:4px">SALE</span>` : "";
 
             return `<div class="order-item-row">
         <img class="order-item-img" src="${imgSrc}" alt="${name}"
           onerror="this.src='https://picsum.photos/seed/fallback${productId}/120/120'" />
         <div class="order-item-info">
-          <div class="order-item-name">${name}</div>
+          <div class="order-item-name">${name}${discountNote}</div>
           ${sku}
         </div>
         <div class="order-item-qty">× ${qty}</div>
@@ -2998,7 +3347,9 @@
 
       /* CRUD */
       function buildCrudForm(row, meta, mode) {
+        const autoManagedFields = ["id", "created_at", "updated_at"];
         return meta.columns
+          .filter((col) => !autoManagedFields.includes(col))
           .map((col) => {
             const isPK = meta.primary_keys.includes(col);
             const val = row ? (row[col] ?? "") : "";
@@ -3045,16 +3396,19 @@
       }
 
       async function saveCrudRow() {
+        const autoManagedFields = ["id", "created_at", "updated_at"];
         const inputs = $("crud-body").querySelectorAll("input:not([readonly]), textarea:not([readonly])");
         const payload = {};
 
         if (state.admin.crudMode === "edit" && state.admin.crudRow)
           state.admin.meta.primary_keys.forEach((pk) => {
-            payload[pk] = state.admin.crudRow[pk];
+            if (!autoManagedFields.includes(pk)) {
+              payload[pk] = state.admin.crudRow[pk];
+            }
           });
 
         inputs.forEach((inp) => {
-          if (!inp.name) return;
+          if (!inp.name || autoManagedFields.includes(inp.name)) return;
           let val = inp.value.trim();
           if (val === "null") val = null;
           else if (val === "true") val = true;
@@ -3066,8 +3420,6 @@
           }
           payload[inp.name] = val;
         });
-
-        if (state.admin.crudMode === "create" && payload.id === "") delete payload.id;
 
         const btn = $("crud-save-btn");
         btn.disabled = true;
@@ -3082,6 +3434,8 @@
           }
           closeCrudModal();
           await loadAdminTable(state.admin.currentTable);
+          // Refresh promos sidebar if discounts were changed
+          if (state.admin.currentTable === "discounts") loadPromotions();
         } catch (e) {
           toast(e.message, "error");
         } finally {
@@ -3096,6 +3450,7 @@
           await api("DELETE", `/api/table/${state.admin.currentTable}/${pkStr}`);
           toast("Row deleted", "info");
           await loadAdminTable(state.admin.currentTable);
+          if (state.admin.currentTable === "discounts") loadPromotions();
         } catch (e) {
           toast(e.message, "error");
         }
@@ -3129,7 +3484,10 @@
         const saved = localStorage.getItem("arcane-theme");
         if (saved) setTheme(saved);
         initDualSlider();
+        // Fetch categories first so categoryNameCache is ready for promotions
         await fetchCategories();
+        // Then fetch products (discounted) + raw prices + promotions in parallel
+        await Promise.all([fetchAllProductsForCache(), loadPromotions()]);
         await fetchProducts();
       })();
     </script>
