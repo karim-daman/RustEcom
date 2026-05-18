@@ -3196,6 +3196,7 @@
                   ${dataCells}
                   ${extra ? `<td style="color:var(--text3)">…</td>` : ""}
                   <td onclick="event.stopPropagation()"><div class="td-actions">
+                    <button class="action-btn copy" onclick="copyRowId('${pkStr}')">Copy</button>
                     <button class="action-btn edit" onclick="openCrudEdit('${pkStr}')">Edit</button>
                     <button class="action-btn del" onclick="deleteRow('${pkStr}')">Del</button>
                   </div></td>
@@ -3430,7 +3431,7 @@
 
       async function saveCrudRow() {
         const autoManagedFields = ["id", "created_at", "updated_at"];
-        const inputs = $("crud-body").querySelectorAll("input:not([readonly]), textarea:not([readonly])");
+        const inputs = $("crud-body").querySelectorAll("input:not([readonly]), textarea:not([readonly]), select:not([readonly])");
         const payload = {};
 
         if (state.admin.crudMode === "edit" && state.admin.crudRow)
@@ -3487,6 +3488,17 @@
         } catch (e) {
           toast(e.message, "error");
         }
+      }
+
+      function copyRowId(pkStr) {
+        if (!navigator.clipboard) {
+          toast("Clipboard not available", "error");
+          return;
+        }
+        navigator.clipboard
+          .writeText(pkStr)
+          .then(() => toast("Row ID copied", "success"))
+          .catch(() => toast("Failed to copy row ID", "error"));
       }
 
       /* KEYBOARD */
