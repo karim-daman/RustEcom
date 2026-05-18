@@ -160,6 +160,31 @@ async fn log_event(log_path: &Arc<PathBuf>, event: &str) {
     }
 }
 
+fn extract_request_ip(req: &Request<Body>) -> String {
+    let headers = req.headers();
+
+    if let Some(xff) = headers
+        .get("x-forwarded-for")
+        .and_then(|h| h.to_str().ok())
+        .filter(|s| !s.trim().is_empty())
+    {
+        let public_ip = xff.split(',').next().unwrap_or("").trim();
+        if !public_ip.is_empty() {
+            return format!("{} (x-forwarded-for)", public_ip);
+        }
+    }
+
+    if let Some(xri) = headers
+        .get("x-real-ip")
+        .and_then(|h| h.to_str().ok())
+        .filter(|s| !s.trim().is_empty())
+    {
+        return format!("{} (x-real-ip)", xri.trim());
+    }
+
+    "unknown".to_string()
+}
+
 async fn logging_middleware(
     State(state): State<AppState>,
     req: Request<Body>,
@@ -167,8 +192,8 @@ async fn logging_middleware(
 ) -> Response {
     let method = req.method().clone();
     let uri = req.uri().clone();
-    
-    let event = format!("{} {}", method, uri);
+    let client_ip = extract_request_ip(&req);
+    let event = format!("{} {} client_ip={}", method, uri, client_ip);
     log_event(&state.log_path, &event).await;
     
     next.run(req).await
