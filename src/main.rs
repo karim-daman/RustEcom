@@ -822,6 +822,14 @@ async fn create_table_row(Path(table): Path<String>, State(state): State<AppStat
     let meta = get_table_meta(&table).ok_or_else(|| ApiError::bad_request("Unknown table"))?;
     let mut payload_obj = payload.as_object().cloned().ok_or_else(|| ApiError::bad_request("Request body must be a JSON object"))?;
 
+    let product_category_id = if table == "products" {
+        payload_obj
+            .remove("category_id")
+            .and_then(|v| v.as_str().map(|s| s.to_string()))
+    } else {
+        None
+    };
+
     if meta.pk == &["id"] && !payload_obj.contains_key("id") {
         payload_obj.insert("id".to_string(), Value::String(Uuid::new_v4().to_string()));
     }
@@ -856,6 +864,18 @@ async fn create_table_row(Path(table): Path<String>, State(state): State<AppStat
                 .unwrap_or_default()
         })
         .collect();
+
+    if table == "products" {
+        if let Some(category_id) = product_category_id.filter(|v| !v.is_empty()) {
+            let product_id = pk_values.first().cloned().unwrap_or_default();
+            sqlx::query("INSERT OR IGNORE INTO product_categories (product_id, category_id) VALUES (?, ?)")
+                .bind(product_id)
+                .bind(category_id)
+                .execute(&state.pool)
+                .await
+                .map_err(|err| ApiError::internal(err.to_string()))?;
+        }
+    }
 
     get_table_row(Path((table, pk_values.join(","))), State(state)).await
 }

@@ -2369,6 +2369,7 @@
 
     <script>
       const API = "http://localhost:3000";
+      // const API = "http://130.110.243.212:3000";
 
       let PRICE_MAX = 700;
 
@@ -3348,7 +3349,10 @@
       /* CRUD */
       function buildCrudForm(row, meta, mode) {
         const autoManagedFields = ["id", "created_at", "updated_at"];
-        return meta.columns
+        const isDiscounts = state.admin.currentTable === "discounts";
+        const isProductCreate = state.admin.currentTable === "products" && mode === "create";
+
+        const formHtml = meta.columns
           .filter((col) => !autoManagedFields.includes(col))
           .map((col) => {
             const isPK = meta.primary_keys.includes(col);
@@ -3357,6 +3361,18 @@
             const ro = mode === "edit" && isPK ? "readonly" : "";
             const dim = mode === "edit" && isPK ? 'style="opacity:.4;pointer-events:none"' : "";
             const long = col === "description" || col === "images" || col === "password_hash";
+
+            if (col === "category_id" && isDiscounts) {
+              const options = state.categories.map((c) => `<option value="${c.id}"${c.id === valStr ? " selected" : ""}>${c.name}</option>`).join("");
+              return `<div class="form-field">
+      <label>${col}${isPK ? '<span class="pk-badge"> PK</span>' : ""}</label>
+      <select name="${col}" ${ro} ${dim}>
+        <option value="">No category</option>
+        ${options}
+      </select>
+    </div>`;
+            }
+
             return `<div class="form-field">
       <label>${col}${isPK ? '<span class="pk-badge"> PK</span>' : ""}</label>
       ${
@@ -3367,6 +3383,23 @@
     </div>`;
           })
           .join("");
+
+        if (isProductCreate) {
+          const selectedCategory = row ? String(row.category_id || "") : "";
+          const options = state.categories.map((c) => `<option value="${c.id}"${c.id === selectedCategory ? " selected" : ""}>${c.name}</option>`).join("");
+          return (
+            formHtml +
+            `<div class="form-field">
+      <label>category_id</label>
+      <select name="category_id">
+        <option value="">Select category</option>
+        ${options}
+      </select>
+    </div>`
+          );
+        }
+
+        return formHtml;
       }
 
       function openCrudCreate() {
