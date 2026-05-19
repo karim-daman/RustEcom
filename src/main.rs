@@ -1,7 +1,7 @@
 mod schema;
 
 use anyhow::Context;
-use axum::extract::{Path, Query, State};
+use axum::extract::{ConnectInfo, Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::{Html, IntoResponse, Response};
 use axum::routing::{get, post};
@@ -182,6 +182,10 @@ fn extract_request_ip(req: &Request<Body>) -> String {
         return format!("{} (x-real-ip)", xri.trim());
     }
 
+    if let Some(ConnectInfo(peer_addr)) = req.extensions().get::<ConnectInfo<SocketAddr>>() {
+        return format!("{} (peer)", peer_addr.ip());
+    }
+
     "unknown".to_string()
 }
 
@@ -324,7 +328,8 @@ async fn main() -> anyhow::Result<()> {
         std::process::exit(0);
     });
 
-    axum::serve(listener, app).await.unwrap();
+    let service = app.into_make_service_with_connect_info::<SocketAddr>();
+    axum::serve(listener, service).await.unwrap();
 
     Ok(())
 }
